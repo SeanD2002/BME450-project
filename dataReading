@@ -2,8 +2,8 @@ import numpy as np
 import pandas
 from PIL import Image
 
-# data = np.genfromtxt('.Data_Entry_2017_v2020.csv.icloud', delimiter=',')
-data = pandas.read_csv('.Data_Entry_2017_v2020.csv.icloud')
+data = np.genfromtxt('.Data_Entry_2017_v2020.csv.icloud', delimiter=',')
+# data = pandas.read_csv('.Data_Entry_2017_v2020.csv.icloud')
 
 imageNames = data[:, 0]
 classification = data[:, 1]
