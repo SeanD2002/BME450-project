@@ -1,15 +1,24 @@
 import numpy as np
-data = np.genfromtxt('Data_Entry_2017_v2020.csv', delimiter=',')
+import pandas
+from PIL import Image
 
-imageNames = data[0]
-classification = data[1]
+# data = np.genfromtxt('.Data_Entry_2017_v2020.csv.icloud', delimiter=',')
+data = pandas.read_csv('.Data_Entry_2017_v2020.csv.icloud')
+
+imageNames = data[:, 0]
+classification = data[:, 1]
 dataset = []
 
+class DataPoint:
+    def __init__(self, image, classification):
+        self.image = image
+        self.classification = classification
 
-for name in imageNames:
-    image = Image.open(name)
+
+for i in range(10):
+    image = Image.open(imageNames[i])
     image_resized = image.resize(64,64)
-    rawDiagnosis = classification[imageNames.index(name)]
+    rawDiagnosis = classification[i]
     diagnosisSplit = rawDiagnosis.split("|")
     diagnosis = diagnosis[0]
     match diagnosis:
@@ -45,8 +54,4 @@ for name in imageNames:
             num = 15
     newPoint = DataPoint(image_resized, num)
     dataset.append(newPoint)
-
-class DataPoint:
-    def __init__(self, image, classification):
-        self.image = image
-        self.classification = classification
+    print(num)
