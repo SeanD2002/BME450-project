@@ -1,0 +1,52 @@
+import numpy as np
+data = np.genfromtxt('Data_Entry_2017_v2020.csv', delimiter=',')
+
+imageNames = data[0]
+classification = data[1]
+dataset = []
+
+
+for name in imageNames:
+    image = Image.open(name)
+    image_resized = image.resize(64,64)
+    rawDiagnosis = classification[imageNames.index(name)]
+    diagnosisSplit = rawDiagnosis.split("|")
+    diagnosis = diagnosis[0]
+    match diagnosis:
+        case "Pneumothorax":
+            num = 1
+        case "Pneumonia":
+            num = 2
+        case "Pleural Thickening":
+            num = 3
+        case "Nodule":
+            num = 4
+        case "Mass":
+            num = 5
+        case "Infiltration":
+            num = 6
+        case "Hernia":
+            num = 7
+        case "Fibrosis":
+            num = 8
+        case "Emphysema":
+            num = 9
+        case "Effusion":
+            num = 10
+        case "Edema":
+            num = 11
+        case "Consolidation":
+            num = 12
+        case "Cardiomegaly":
+            num = 13
+        case "Atelactasis":
+            num = 14
+        case "No Finding":
+            num = 15
+    newPoint = DataPoint(image_resized, num)
+    dataset.append(newPoint)
+
+class DataPoint:
+    def __init__(self, image, classification):
+        self.image = image
+        self.classification = classification
