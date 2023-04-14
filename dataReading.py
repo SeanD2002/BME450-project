@@ -3,25 +3,23 @@ import pandas
 from PIL import Image
 
 # data = np.genfromtxt('.Data_Entry_2017_v2020.csv.icloud', delimiter=',')
-data = pandas.read_csv('Data_Entry_2017_v2020 (1).csv')
-#print(data)
+data = pandas.read_csv('Data_Entry_2017_v2020.csv')
+print(data)
 imageNames = data[data.columns[0]]
 classification = data[data.columns[1]]
 print(imageNames)
 dataset = []
 
-class DataPoint:
-    def __init__(self, image, classification):
-        self.image = image
-        self.classification = classification
-
 
 for i in range(10):
     image = Image.open(imageNames[i])
-    image_resized = image.resize(64,64)
+    image_resized = image.resize((64,64))
+    image_resized.show()
     rawDiagnosis = classification[i]
     diagnosisSplit = rawDiagnosis.split("|")
-    diagnosis = diagnosis[0]
+    diagnosis = diagnosisSplit[0]
+    print("it ran")
+    print(diagnosis)
     if diagnosis == "Pneumothorax":
         num = 1
     elif diagnosis == "Pneuomonia":
@@ -52,6 +50,5 @@ for i in range(10):
         num = 14
     elif diagnosis == "No Finding":
         num = 15
-    newPoint = DataPoint(image_resized, num)
-    dataset.append(newPoint)
+    
     print(num)
