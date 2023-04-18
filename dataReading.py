@@ -1,6 +1,7 @@
 import numpy as np
 import pandas
 from PIL import Image
+import torch
 
 # data = np.genfromtxt('.Data_Entry_2017_v2020.csv.icloud', delimiter=',')
 data = pandas.read_csv('Data_Entry_2017_v2020.csv')
@@ -10,16 +11,15 @@ classification = data[data.columns[1]]
 print(imageNames)
 dataset = []
 
-
+#
 for i in range(10):
     image = Image.open(imageNames[i])
     image_resized = image.resize((64,64))
-    image_resized.show()
+    #image_resized.show()
     rawDiagnosis = classification[i]
     diagnosisSplit = rawDiagnosis.split("|")
     diagnosis = diagnosisSplit[0]
-    print("it ran")
-    print(diagnosis)
+    #print(diagnosis)
     if diagnosis == "Pneumothorax":
         num = 1
     elif diagnosis == "Pneuomonia":
@@ -51,4 +51,4 @@ for i in range(10):
     elif diagnosis == "No Finding":
         num = 15
     
-    print(num)
+    #print(num)
