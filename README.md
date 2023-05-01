@@ -2,6 +2,7 @@
     Chest X ray Diagnoser
 ##Team members
     Sean Devaney(SeanD2002)
+    Sveni Thalor (svenithalor)
 ##Project Description
     NIH Database of 100,000 Chest X-Rays: https://nihcc.app.box.com/v/ChestXray-NIHCC
     This database contains xray images, associated clinincal data, annotations, and dignaoses
