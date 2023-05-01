@@ -1,151 +1,256 @@
 import numpy as np
-import pandas
+import csv
 from PIL import Image
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
+from torch.utils.data import DataLoader, Dataset
+import torch.utils.data
+import os
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
 
-# data = np.genfromtxt('.Data_Entry_2017_v2020.csv.icloud', delimiter=',')
-data = pandas.read_csv('Data_Entry_2017_v2020.csv')
-print(data)
-imageNames = data[data.columns[0]]
-classification = data[data.columns[1]]
-print(imageNames)
+
+#code to load data from csv file and folder
+data = []
+imageNames = []
+classification = []
+i = 0
+included_cols = [0,1]
+with open('Data_Entry_2017_v2020.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter = ',', quotechar='|')
+    for row in reader:
+        content = list(row[i] for i in included_cols)
+        imageNames.insert(i, content[0])
+        classification.insert(i,content[1])
+        i = i+1
+
 images = []
 diagnoses = []
+dataset = []
 
-#
-for i in range(10):
-    image = Image.open(imageNames[i])
+i = 0
+backSlash = "C:\\Users\\sadev\\images" + "\\"
+#example =  Image.open("C:\\Users\\sadev\\images" + "\\" + imageNames[1])
+#example.show()
+#example = example.resize((64,64))
+#example.show()
+
+#code to iterate through 100,000 values and use only 5000
+for i in range(1,5000):
+    image = Image.open(backSlash + imageNames[i])
     image_resized = image.resize((64,64))
-    images.append(image_resized)
-    #image_resized.show()
     rawDiagnosis = classification[i]
     diagnosisSplit = rawDiagnosis.split("|")
     diagnosis = diagnosisSplit[0]
-    #print(diagnosis)
     if diagnosis == "Pneumothorax":
+        num = 0
+    elif diagnosis == "Pneumonia":
         num = 1
-    elif diagnosis == "Pneuomonia":
+    elif diagnosis == "Pleural_Thickening":
         num = 2
-    elif diagnosis == "Pleural Thickening":
-        num = 3
     elif diagnosis == "Nodule": 
-        num = 4
+        num = 3
     elif diagnosis == "Mass":
-        num = 5
+        num = 4
     elif diagnosis == "Infiltration":
-        num = 6
+        num = 5
     elif diagnosis == "Hernia":
-        num = 7
+        num = 6
     elif diagnosis == "Fibrosis":
-        num = 8
+        num = 7
     elif diagnosis == "Emphysema":
-        num = 9
+        num = 8
     elif diagnosis == "Effusion":
-        num = 10
+        num = 9
     elif diagnosis == "Edema":
-        num = 11
+        num = 10
     elif diagnosis == "Consolidation":
-        num = 12
+        num = 11
     elif diagnosis == "Cardiomegaly":
+        num = 12
+    elif diagnosis == "Atelectasis":
         num = 13
-    elif diagnosis == "Atelactasis":
-        num = 14
     elif diagnosis == "No Finding":
-        num = 15
-    
+        num = 14
+    else:
+        print(diagnosis)
     diagnoses.append(num)
-    
-class ConvNet(nn.Module):
-    def __init__(self, num_classes=15):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(64 * 16 * 16, 256)
-        self.dropout = nn.Dropout(p=0.5)
-        self.fc2 = nn.Linear(256, num_classes)
-        self.relu = nn.ReLU()
+    dataTuple = (image_resized, num)
+    dataset.append(dataTuple)   
+
+
+
+# Data loading
+class MyTransform(object):
+    def __init__(self, size=(64, 64), mean=0.5, std=0.5):
+        self.size = size
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, img):
+        img = img.resize(self.size)
+        img = np.array(img, dtype=np.float32)
+        img = (img / 255.0 - self.mean) / self.std
+        img = torch.from_numpy(img).unsqueeze(0)
+        return img
+class MyDataset(Dataset):
+    def __init__(self, root_dir, image_filenames, labels, transform=None):
+        self.root_dir = root_dir
+        self.image_filenames = image_filenames
+        self.labels = labels
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_filenames)
+
+    def __getitem__(self, index):
+        img_path = os.path.join(self.root_dir, self.image_filenames[index])
+        img = Image.open(img_path).convert('L')
+        label = self.labels[index]
+
+        if self.transform:
+            img = self.transform(img)
+
+        return img, label
+
+#creates class to construct nerual network
+class Net(nn.Module):
+    def __init__(self, l1_reg = 0.01, l2_reg = 0.01):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)
+        self.pool1 = nn.MaxPool2d(kernel_size=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.pool2 = nn.MaxPool2d(kernel_size=2)
+        self.fc1 = nn.Linear(64 * 14 * 14, 128)
+        self.fc2 = nn.Linear(128, 15)
+        self.dropout = nn.Dropout(p = 0.5)
+
 
     def forward(self, x):
-        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.conv1(x)
+        x = nn.functional.relu(x)
         x = self.pool1(x)
-        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.conv2(x)
+        x = nn.functional.relu(x)
         x = self.pool2(x)
-        x = x.view(-1, 64 * 16 * 16)
-        x = self.relu(self.fc1(x))
+        x = x.view(-1, 64 * 14 * 14)
+        x = self.fc1(x)
+        x = nn.functional.relu(x)
         x = self.dropout(x)
         x = self.fc2(x)
         return x
+    #attempt to add L1/l2 regularization to neural network
+    """def l1_penalty(self):
+        l1 = torch.tensor(0., requires_grad=True)
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                l1 += torch.norm(param, 1)
+        return l1
     
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def l2_penalty(self):
+        l2 = torch.tensor(0., requires_grad=True)
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                l2 += torch.norm(param, 2)
+        return l2
+    
+    def loss_fn(self, outputs, labels, l1_lambda=0.001, l2_lambda=0.0001):
+        criterion = nn.CrossEntropyLoss()
+        l1 = self.l1_penalty()
+        l2 = self.l2_penalty()
+        loss = criterion(outputs, labels) + l1_lambda * l1 + l2_lambda * l2
+        return loss"""
 
-# Hyperparameters
-num_epochs = 10
-batch_size = 32
-learning_rate = 0.001
-
-# Data loading
-transform = transforms.Compose([
-    transforms.Grayscale(),
-    transforms.Resize((64, 64)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))
-])
-
-train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
-
-# Model
-model = ConvNet(num_classes=10).to(device)
-
-# Loss and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-# Train the model
-for epoch in range(num_epochs):
-    for i, (images, labels) in enumerate(train_loader):
-        images = images.to(device)
-        labels = labels.to(device)
-
-        # Forward pass
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-
-        # Backward and optimize
+#function to train our model    
+def train(model, dataloader, criterion, optimizer):
+    model.train()
+    train_loss = 0.0
+  
+    for inputs, targets in dataloader:
+        inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
+        train_loss += loss.item() * inputs.size(0)
+    return train_loss / len(dataloader.dataset)
 
-        # Print loss
-        if (i+1) % 100 == 0:
-            print(f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}')
+#function to test our model
+def test(model, dataloader):
+    model.eval()
+    test_loss = 0.0
+    y_true, y_pred = [], []
+    with torch.no_grad():
+        for inputs, targets in dataloader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            test_loss += loss.item() * inputs.size(0)
+            _, predicted = torch.max(outputs, 1)
+            y_true.extend(targets.cpu().numpy())
+            y_pred.extend(predicted.cpu().numpy())
+    accuracy = accuracy_score(y_true, y_pred)
+    return test_loss / len(dataloader.dataset), accuracy
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Test the model
-model.eval()
+#sets up variables to run with code
+lr = 0.001
+num_epochs = 30
+batch_size = 32
+root_dir = backSlash
+image_filenames = imageNames[1:5000] 
+labels = diagnoses[0:5000] 
+inter = np.array(labels)
+labels = torch.from_numpy(inter)
+labels = labels.long()
 
-with torch.no_grad():
-    correct = 0
-    total = 0
-    for images, labels in test_loader:
-        images = images.to(device)
-        labels = labels.to(device)
-        outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+transform = MyTransform()
+dataset = MyDataset(root_dir, image_filenames, labels, transform=transform)
 
-    print(f'Test Accuracy of the model on the {len(test_loader.dataset)} test images: {100 * correct / total}%')
 
-# Save the model checkpoint
-torch.save(model.state_dict(), 'convnet_mnist.ckpt')
+test_split = 0.2
+test_size = int(len(dataset) * test_split)
+train_size = len(dataset) - test_size
+train_set, test_set = torch.utils.data.random_split(dataset, [train_size, test_size])
+
+model = Net().to(device)
+
+
+criterion = nn.CrossEntropyLoss()
+#more code in attemot to add l1/l2 regularization
+#l1_lambda = 0.001
+#l2_lambda = 0.0001
+#criterion = nn.CrossEntropyLoss(weight=torch.tensor([1., 1.]), reduction='mean')
+#l1_reg = nn.L1Loss(reduction='mean')
+#l2_reg = nn.MSELoss(reduction='mean')
+#for param in model.parameters():
+#        criterion = criterion + l1_lambda * l1_reg(param) + l2_lambda * l2_reg(param)
+
+optimizer = optim.Adam(model.parameters(), lr=lr)
+
+#sets up data for use from tensors
+train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
+
+roundNumber = []
+trainLoss = []
+testLoss = []
+
+#iterate through number of epochs to train and test dataset
+for epoch in range(num_epochs):
+    train_loss = train(model, train_loader, criterion, optimizer)
+    test_loss, accuracy = test(model, test_loader)
+    print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}, Accuracy: {accuracy:.4f}')
+    roundNumber.append(epoch+1)
+    trainLoss.append(train_loss)
+    testLoss.append(test_loss)
+#plots test and train loss from epochs
+plt.plot(roundNumber,trainLoss, label = "train")
+plt.plot(roundNumber,testLoss, label = 'test')
+plt.legend()
+plt.show()
+print('finish')
+
+
